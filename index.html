@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hành Lang Ánh Sao — Memory Tunnel</title>
+    <meta name="description"
+        content="Hành trình tốt nghiệp qua Hành Lang Ánh Sao - Starlight Corridor experience built with Three.js">
+</head>
+
+<style>
+    @import "https://fonts.googleapis.com/css2?family=Megrim&family=Outfit:wght@300;600&display=swap";
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        overflow: hidden;
+        margin: 0;
+        background: #050008;
+    }
+
+    /* Three.js canvas must sit at the bottom of the stack */
+    canvas {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        z-index: 0;
+    }
+
+    /* ── UI Overlay ── */
+    #ui-overlay {
+        position: fixed;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        pointer-events: none;
+    }
+
+    #milestone-label {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 300;
+        font-size: 1.6rem;
+        color: rgba(255, 220, 150, 0.9);
+        text-shadow: 0 0 20px rgba(255, 180, 50, 0.5), 0 0 60px rgba(200, 100, 255, 0.3);
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        opacity: 0;
+        transition: opacity 0.8s ease;
+    }
+
+    #milestone-label.visible {
+        opacity: 1;
+    }
+
+    #nav-hint {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 300;
+        font-size: 0.85rem;
+        color: rgba(200, 180, 255, 0.5);
+        letter-spacing: 0.1em;
+        animation: pulse-hint 2.5s ease-in-out infinite;
+        pointer-events: auto;
+        cursor: pointer;
+        user-select: none;
+        padding: 10px 28px;
+        border: 1px solid rgba(200, 180, 255, 0.15);
+        border-radius: 30px;
+        backdrop-filter: blur(6px);
+        background: rgba(30, 10, 60, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    #nav-hint:hover {
+        color: rgba(255, 220, 150, 0.9);
+        border-color: rgba(255, 200, 100, 0.3);
+        background: rgba(60, 30, 90, 0.4);
+        box-shadow: 0 0 30px rgba(255, 180, 50, 0.15);
+    }
+
+    @keyframes pulse-hint {
+
+        0%,
+        100% {
+            opacity: 0.5;
+            transform: translateY(0);
+        }
+
+        50% {
+            opacity: 1;
+            transform: translateY(-4px);
+        }
+    }
+
+    /* ── Progress bar ── */
+    #progress-track {
+        position: fixed;
+        right: 30px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 200px;
+        background: rgba(100, 60, 180, 0.15);
+        border-radius: 3px;
+        z-index: 100;
+    }
+
+    #progress-fill {
+        width: 100%;
+        height: 0%;
+        background: linear-gradient(to bottom, #ffcc44, #aa55ff);
+        border-radius: 3px;
+        transition: height 1.5s ease;
+        box-shadow: 0 0 10px rgba(255, 200, 50, 0.4);
+    }
+
+    .progress-dot {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: rgba(100, 60, 180, 0.3);
+        border: 1px solid rgba(160, 120, 255, 0.3);
+        transition: all 0.5s ease;
+    }
+
+    .progress-dot.active {
+        background: #ffcc44;
+        border-color: #ffcc44;
+        box-shadow: 0 0 12px rgba(255, 200, 50, 0.6);
+    }
+
+    /* ── Loading ── */
+    #loading-screen {
+        position: fixed;
+        inset: 0;
+        background: #050008;
+        z-index: 999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 1.5s ease;
+    }
+
+    #loading-screen.fade-out {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .loading-text {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 300;
+        font-size: 1.2rem;
+        color: rgba(200, 180, 255, 0.7);
+        letter-spacing: 0.3em;
+        animation: loading-pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes loading-pulse {
+
+        0%,
+        100% {
+            opacity: 0.4;
+        }
+
+        50% {
+            opacity: 1;
+        }
+    }
+
+    /* ── Start Screen ── */
+    #start-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 900;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(ellipse at center, #1a0535 0%, #050008 70%);
+        transition: opacity 1.2s ease;
+        overflow: hidden;
+    }
+
+    #start-screen::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: url('assets/images/thumnail.png') center/cover no-repeat;
+        opacity: 0.18;
+        filter: blur(2px) saturate(1.4);
+        z-index: 0;
+        transform: scale(1.05);
+    }
+
+    .start-stars,
+    .start-title,
+    .start-subtitle,
+    #btn-start {
+        position: relative;
+        z-index: 1;
+    }
+
+    #start-screen.hidden {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .start-title {
+        font-family: 'Megrim', cursive;
+        font-size: clamp(2.5rem, 6vw, 5rem);
+        color: #ffd966;
+        text-shadow: 0 0 40px rgba(255, 200, 50, 0.5), 0 0 80px rgba(180, 80, 255, 0.3);
+        letter-spacing: 0.08em;
+        margin-bottom: 0.3em;
+        animation: float-title 3s ease-in-out infinite;
+    }
+
+    @keyframes float-title {
+
+        0%,
+        100% {
+            transform: translateY(0);
+        }
+
+        50% {
+            transform: translateY(-10px);
+        }
+    }
+
+    .start-subtitle {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 300;
+        font-size: clamp(0.9rem, 2vw, 1.2rem);
+        color: rgba(200, 180, 255, 0.6);
+        letter-spacing: 0.25em;
+        margin-bottom: 3em;
+        text-transform: uppercase;
+    }
+
+    #btn-start {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 600;
+        font-size: 1rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: #050008;
+        background: linear-gradient(135deg, #ffd966, #ff9a44);
+        border: none;
+        border-radius: 50px;
+        padding: 16px 56px;
+        cursor: pointer;
+        box-shadow: 0 0 40px rgba(255, 200, 50, 0.4), 0 0 80px rgba(255, 150, 50, 0.2);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    #btn-start::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.15);
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    #btn-start:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 60px rgba(255, 200, 50, 0.6);
+    }
+
+    #btn-start:hover::after {
+        opacity: 1;
+    }
+
+    .start-stars {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        overflow: hidden;
+    }
+
+    /* ── Audio Button ── */
+    #audio-btn {
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        z-index: 200;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: 1px solid rgba(200, 180, 255, 0.25);
+        background: rgba(20, 10, 40, 0.6);
+        backdrop-filter: blur(8px);
+        color: rgba(200, 180, 255, 0.7);
+        font-size: 1.2rem;
+        cursor: pointer;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s;
+    }
+
+    #audio-btn:hover {
+        border-color: rgba(255, 200, 100, 0.4);
+        color: #ffd966;
+    }
+
+    #audio-btn.show {
+        display: flex;
+    }
+
+    /* ── Invite Popup ── */
+    #invite-popup {
+        position: fixed;
+        inset: 0;
+        z-index: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(5, 0, 8, 0.85);
+        backdrop-filter: blur(12px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 1s ease;
+    }
+
+    #invite-popup.show {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .popup-card {
+        position: relative;
+        max-width: 560px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        background: linear-gradient(145deg, #1a0535, #0d0020);
+        border: 1px solid rgba(255, 200, 100, 0.25);
+        border-radius: 20px;
+        padding: 40px 36px;
+        text-align: center;
+        box-shadow: 0 0 80px rgba(180, 80, 255, 0.2), 0 0 140px rgba(255, 180, 50, 0.1);
+        animation: popup-enter 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    @keyframes popup-enter {
+        from {
+            transform: scale(0.7) translateY(40px);
+            opacity: 0;
+        }
+
+        to {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .popup-invite-img {
+        width: 100%;
+        max-height: 340px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 200, 100, 0.25);
+        margin-bottom: 24px;
+        display: block;
+        box-shadow: 0 0 30px rgba(255, 180, 50, 0.2), 0 0 80px rgba(180, 80, 255, 0.1);
+    }
+
+    .popup-img-placeholder {
+        width: 100%;
+        height: 200px;
+        border-radius: 12px;
+        border: 2px dashed rgba(255, 200, 100, 0.3);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 24px;
+        background: rgba(255, 200, 100, 0.04);
+        color: rgba(255, 200, 100, 0.5);
+        font-family: 'Outfit', sans-serif;
+        font-size: 0.9rem;
+        letter-spacing: 0.1em;
+        gap: 8px;
+    }
+
+    .popup-title {
+        font-family: 'Megrim', cursive;
+        font-size: 2.2rem;
+        color: #ffd966;
+        text-shadow: 0 0 30px rgba(255, 200, 50, 0.5);
+        margin-bottom: 8px;
+    }
+
+    .popup-sub {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 300;
+        font-size: 0.95rem;
+        color: rgba(200, 180, 255, 0.7);
+        line-height: 1.7;
+        margin-bottom: 28px;
+        letter-spacing: 0.05em;
+    }
+
+    #btn-close-popup {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 600;
+        font-size: 0.85rem;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: #050008;
+        background: linear-gradient(135deg, #ffd966, #cc66ff);
+        border: none;
+        border-radius: 30px;
+        padding: 12px 36px;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    #btn-close-popup:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 30px rgba(200, 100, 255, 0.4);
+    }
+
+    .popup-close-x {
+        position: absolute;
+        top: 16px;
+        right: 20px;
+        color: rgba(200, 180, 255, 0.4);
+        font-size: 1.4rem;
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+
+    .popup-close-x:hover {
+        color: rgba(255, 200, 100, 0.8);
+    }
+
+    .popup-sparkle {
+        position: absolute;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #ffd966;
+        box-shadow: 0 0 10px #ffd966;
+        animation: sparkle-float 3s ease-in-out infinite;
+    }
+
+    @keyframes sparkle-float {
+
+        0%,
+        100% {
+            transform: translateY(0) scale(1);
+            opacity: 0.8;
+        }
+
+        50% {
+            transform: translateY(-20px) scale(0.5);
+            opacity: 0.2;
+        }
+    }
+
+    .popup-section-label {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 300;
+        font-size: 0.7rem;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        color: rgba(200, 180, 255, 0.45);
+        margin-bottom: 4px;
+    }
+
+    .popup-section-value {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 600;
+        font-size: 1.05rem;
+        color: #ffd966;
+        margin-bottom: 2px;
+    }
+
+    .popup-section-detail {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 300;
+        font-size: 0.85rem;
+        color: rgba(200, 180, 255, 0.6);
+    }
+
+    .popup-info-row {
+        display: flex;
+        gap: 16px;
+        margin: 20px 0;
+    }
+
+    .popup-info-box {
+        flex: 1;
+        padding: 16px 10px;
+        border: 1px solid rgba(255, 200, 100, 0.12);
+        border-radius: 12px;
+        background: rgba(255, 200, 100, 0.03);
+    }
+
+    .popup-divider {
+        width: 60%;
+        height: 1px;
+        margin: 20px auto;
+        background: linear-gradient(90deg, transparent, rgba(255, 200, 100, 0.3), transparent);
+    }
+
+    .popup-letter {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 300;
+        font-size: 0.88rem;
+        color: rgba(200, 180, 255, 0.65);
+        line-height: 1.8;
+        margin-bottom: 16px;
+        letter-spacing: 0.03em;
+    }
+
+    .popup-signature {
+        font-family: 'Megrim', cursive;
+        font-size: 1.6rem;
+        color: #ffd966;
+        margin-bottom: 6px;
+    }
+
+    .popup-footer {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 300;
+        font-size: 0.78rem;
+        color: rgba(200, 180, 255, 0.4);
+        letter-spacing: 0.1em;
+        margin-top: 12px;
+    }
+
+    .popup-map-link {
+        color: #66ffaa;
+        text-decoration: none;
+        font-size: 0.82rem;
+        transition: color 0.2s;
+    }
+
+    .popup-map-link:hover {
+        color: #ffd966;
+    }
+</style>
+
+<body>
+    <!-- Audio -->
+    <audio id="bg-music" loop preload="auto" crossorigin="anonymous">
+        <source src="assets/music/background.mp3" type="audio/mpeg">
+        <source src="https://cdn.pixabay.com/audio/2022/05/27/audio_1808fbf07a.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Audio toggle button -->
+    <button id="audio-btn" title="Bật/tắt nhạc">🎵</button>
+
+    <!-- Loading screen -->
+    <div id="loading-screen">
+        <div class="loading-text">ĐANG TẢI HÀNH LANG ÁNH SAO...</div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start-screen">
+        <div class="start-stars" id="start-stars"></div>
+        <div class="start-title">Hành Lang Ký Ức</div>
+        <div class="start-subtitle">Một hành trình · Năm cột mốc · Vô vàn kỷ niệm</div>
+        <button id="btn-start">✦ &nbsp;Bắt Đầu Hành Trình&nbsp; ✦</button>
+    </div>
+
+    <!-- Invite Popup (shown at end) -->
+    <div id="invite-popup">
+        <div class="popup-card" id="popup-card">
+            <span class="popup-close-x" id="popup-close-x">✕</span>
+            <!-- Sparkles -->
+            <div class="popup-sparkle" style="top:12px;left:20px;animation-delay:0s"></div>
+            <div class="popup-sparkle" style="top:20px;right:30px;animation-delay:1s"></div>
+            <div class="popup-sparkle" style="bottom:40px;left:40px;animation-delay:1.5s"></div>
+            <div class="popup-sparkle" style="bottom:60px;right:20px;animation-delay:0.5s"></div>
+
+            <!-- Invite image -->
+            <img id="invite-img" class="popup-invite-img" src="assets/images/invite.png" alt="Thiệp mời tốt nghiệp"
+                onerror="this.style.display='none'; document.getElementById('img-placeholder').style.display='flex';">
+            <div class="popup-img-placeholder" id="img-placeholder" style="display:none">
+                <span style="font-size:2.5rem">🎓</span>
+                <span>Không tìm thấy ảnh invite.png</span>
+            </div>
+
+            <div class="popup-section-label">THIỆP MỜI DỰ LỄ TỐT NGHIỆP</div>
+            <div class="popup-title">Chúc Mừng Tốt Nghiệp!</div>
+
+            <div class="popup-divider"></div>
+
+            <!-- Thông tin buổi lễ -->
+            <div class="popup-info-row">
+                <div class="popup-info-box">
+                    <div class="popup-section-label">NGÀY & GIỞ</div>
+                    <div class="popup-section-value">Thứ Bảy, 23.05.2026</div>
+                    <div class="popup-section-detail">09:00</div>
+                </div>
+                <div class="popup-info-box">
+                    <div class="popup-section-label">ĐỊA ĐIỂM</div>
+                    <div class="popup-section-value">Hội trường A2</div>
+                    <div class="popup-section-detail">Học viện Công nghệ Bưu chính Viễn thông</div>
+                    <a href="https://maps.google.com/?q=H%E1%BB%8Dc+vi%E1%BB%87n+C%C3%B4ng+ngh%E1%BB%87+B%C6%B0u+ch%C3%ADnh+Vi%E1%BB%85n+th%C3%B4ng"
+                        target="_blank" class="popup-map-link">📍 Google Map</a>
+                </div>
+            </div>
+
+            <div class="popup-divider"></div>
+
+            <div class="popup-letter">
+                Trân trọng mời bạn đến dự lễ tốt nghiệp và cùng lưu lại những<br>
+                khoảnh khắc đáng nhớ trong ngày đặc biệt này.
+            </div>
+            <div class="popup-letter">Thân mời,</div>
+            <div class="popup-signature">Dta</div>
+
+            <div class="popup-divider"></div>
+
+            <div class="popup-footer">
+                Hẹn gặp bạn trong ngày tốt nghiệp của tôi.<br>
+                Dta w/ loops
+            </div>
+
+            <div style="margin-top:24px">
+                <button id="btn-close-popup">Đóng thiệp</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- UI Overlay -->
+    <div id="ui-overlay">
+        <div id="milestone-label"></div>
+        <div id="nav-hint" style="display:none">✦ ĐANG HÀNH TRÌNH... ✦</div>
+    </div>
+
+    <!-- Progress sidebar -->
+    <div id="progress-track" style="display:none">
+        <div id="progress-fill"></div>
+    </div>
+
+    <script type="module">
+        import * as THREE from "https://cdn.skypack.dev/three@0.136.0";
+        import { OrbitControls } from "https://cdn.skypack.dev/three@0.136.0/examples/jsm/controls/OrbitControls";
+
+        // ══════════════════════════════════════════════
+        //  1. SCENE SETUP
+        // ══════════════════════════════════════════════
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050008);
+        scene.fog = new THREE.FogExp2(0x050008, 0.0018);
+
+        const camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 1, 2000);
+        camera.position.set(0, 0, 50);
+        camera.lookAt(0, 0, -100);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(innerWidth, innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        document.body.appendChild(renderer.domElement);
+
+        window.addEventListener("resize", () => {
+            camera.aspect = innerWidth / innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(innerWidth, innerHeight);
+        });
+
+        // Disable OrbitControls for the corridor experience (camera will be driven by GSAP)
+        // But keep it available for debugging — toggle with 'D' key
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enabled = false;
+        controls.enableDamping = true;
+        controls.enablePan = false;
+
+        let debugMode = false;
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'd' || e.key === 'D') {
+                debugMode = !debugMode;
+                controls.enabled = debugMode;
+                console.log(`Debug mode: ${debugMode ? 'ON' : 'OFF'}`);
+            }
+        });
+
+        // ══════════════════════════════════════════════
+        //  2. MILESTONES — Cột mốc hành trình
+        // ══════════════════════════════════════════════
+        const milestones = [
+            { z: -100, label: "Khởi Đầu — Bước Chân Đầu Tiên", color: 0xffd966 },
+            { z: -300, label: "Thử Thách — Vượt Qua Giới Hạn", color: 0xff8855 },
+            { z: -500, label: "Trưởng Thành — Tìm Thấy Chính Mình", color: 0xcc66ff },
+            { z: -700, label: "Tốt Nghiệp — Khởi Đầu Mới", color: 0x66ffaa },
+        ];
+
+        // Camera positions (slightly in front of each milestone)
+        const cameraStops = [
+            50,   // starting position
+            ...milestones.map(m => m.z + 60)
+        ];
+
+        // ══════════════════════════════════════════════
+        //  3. PARTICLE WALLS — Tường hạt sao
+        // ══════════════════════════════════════════════
+        const gu = { time: { value: 0 } };
+
+        const TOTAL_PARTICLES = 120000;
+        const WALL_PARTICLES = 45000;   // per wall
+        const CEILING_FLOOR = 15000;    // ceiling + floor
+        const AMBIENT_PARTICLES = TOTAL_PARTICLES - WALL_PARTICLES * 2 - CEILING_FLOOR;
+
+        const sizes = [];
+        const shift = [];
+
+        function pushShift() {
+            shift.push(
+                Math.random() * Math.PI,
+                Math.random() * Math.PI * 2,
+                (Math.random() * 0.9 + 0.1) * Math.PI * 0.1,
+                Math.random() * 0.5 + 0.2  // amplitude — smaller for subtle shimmer
+            );
+        }
+
+        const pts = [];
+
+        // ── Left wall (x ≈ -15) ──
+        for (let i = 0; i < WALL_PARTICLES; i++) {
+            const x = -15 + (Math.random() - 0.5) * 6;
+            const y = (Math.random() - 0.5) * 40;
+            const z = -Math.random() * 1050;
+            pts.push(new THREE.Vector3(x, y, z));
+            sizes.push(Math.random() * 1.5 + 0.5);
+            pushShift();
+        }
+
+        // ── Right wall (x ≈ +15) ──
+        for (let i = 0; i < WALL_PARTICLES; i++) {
+            const x = 15 + (Math.random() - 0.5) * 6;
+            const y = (Math.random() - 0.5) * 40;
+            const z = -Math.random() * 1050;
+            pts.push(new THREE.Vector3(x, y, z));
+            sizes.push(Math.random() * 1.5 + 0.5);
+            pushShift();
+        }
+
+        // ── Ceiling & Floor (y ≈ ±20, thinner density) ──
+        for (let i = 0; i < CEILING_FLOOR; i++) {
+            const x = (Math.random() - 0.5) * 34;
+            const y = (i < CEILING_FLOOR / 2) ? (20 + (Math.random() - 0.5) * 4) : (-20 + (Math.random() - 0.5) * 4);
+            const z = -Math.random() * 1050;
+            pts.push(new THREE.Vector3(x, y, z));
+            sizes.push(Math.random() * 1.0 + 0.3);
+            pushShift();
+        }
+
+        // ── Ambient floating particles (inside the corridor, sparse) ──
+        for (let i = 0; i < AMBIENT_PARTICLES; i++) {
+            const x = (Math.random() - 0.5) * 24;
+            const y = (Math.random() - 0.5) * 30;
+            const z = -Math.random() * 1050;
+            pts.push(new THREE.Vector3(x, y, z));
+            sizes.push(Math.random() * 0.8 + 0.2);
+            pushShift();
+        }
+
+        // ══════════════════════════════════════════════
+        //  4. CUSTOM SHADER MATERIAL
+        // ══════════════════════════════════════════════
+        const geometry = new THREE.BufferGeometry().setFromPoints(pts);
+        geometry.setAttribute("sizes", new THREE.Float32BufferAttribute(sizes, 1));
+        geometry.setAttribute("shift", new THREE.Float32BufferAttribute(shift, 4));
+
+        const material = new THREE.PointsMaterial({
+            size: 0.125,
+            transparent: true,
+            depthTest: false,
+            blending: THREE.AdditiveBlending,
+            onBeforeCompile: shader => {
+                shader.uniforms.time = gu.time;
+
+                // ── Vertex Shader ──
+                shader.vertexShader = `
+                    uniform float time;
+                    attribute float sizes;
+                    attribute vec4 shift;
+                    varying vec3 vColor;
+                    varying float vAlpha;
+                    ${shader.vertexShader}
+                `.replace(
+                    `gl_PointSize = size;`,
+                    `gl_PointSize = size * sizes;`
+                ).replace(
+                    `#include <color_vertex>`,
+                    `#include <color_vertex>
+
+                    // ── Z-depth gradient coloring ──
+                    float zDepth = clamp(-position.z / 1000.0, 0.0, 1.0);
+
+                    // Near: warm gold → Mid: rose/violet → Far: deep indigo/black
+                    vec3 colorNear  = vec3(255., 210., 80.) / 255.0;
+                    vec3 colorMid   = vec3(200., 80., 255.) / 255.0;
+                    vec3 colorFar   = vec3(20., 5., 50.) / 255.0;
+
+                    if (zDepth < 0.5) {
+                        vColor = mix(colorNear, colorMid, zDepth * 2.0);
+                    } else {
+                        vColor = mix(colorMid, colorFar, (zDepth - 0.5) * 2.0);
+                    }
+
+                    // Fade opacity with distance
+                    vAlpha = mix(1.0, 0.15, zDepth);
+                    `
+                ).replace(
+                    `#include <begin_vertex>`,
+                    `#include <begin_vertex>
+
+                    // ── Gentle shimmer in place (no rotation!) ──
+                    float t = time;
+                    float shimmerX = sin(t * shift.z * 2.0 + shift.x) * shift.a * 0.3;
+                    float shimmerY = cos(t * shift.z * 1.5 + shift.y) * shift.a * 0.2;
+                    float shimmerZ = sin(t * shift.z * 1.0 + shift.x + shift.y) * shift.a * 0.15;
+                    transformed += vec3(shimmerX, shimmerY, shimmerZ);
+                    `
+                );
+
+                // ── Fragment Shader ──
+                shader.fragmentShader = `
+                    varying vec3 vColor;
+                    varying float vAlpha;
+                    ${shader.fragmentShader}
+                `.replace(
+                    `#include <clipping_planes_fragment>`,
+                    `#include <clipping_planes_fragment>
+                    float d = length(gl_PointCoord.xy - 0.5);
+                    `
+                ).replace(
+                    `vec4 diffuseColor = vec4( diffuse, opacity );`,
+                    `vec4 diffuseColor = vec4( vColor, smoothstep(0.5, 0.1, d) * vAlpha );`
+                );
+            }
+        });
+
+        const particleSystem = new THREE.Points(geometry, material);
+        scene.add(particleSystem);
+
+        // ══════════════════════════════════════════════
+        //  5. IMAGE HOLOGRAMS — Bảng ảnh tại mỗi cột mốc
+        // ══════════════════════════════════════════════
+
+        // Danh sách ảnh thật và tiêu đề cho mỗi cột mốc
+        const milestoneImages = [
+            { src: 'assets/images/Nam_nhat.JPG', title: 'Bước Chân Đầu Tiên', caption: 'Ngày đầu bước vào giảng đường' },
+            { src: 'assets/images/Nam_hai.jpg', title: 'Vượt Qua Thử Thách', caption: 'Những ngày miệt mài không ngủ' },
+            { src: 'assets/images/Nam_ba.jpg', title: 'Trưởng Thành & Bứt Phá', caption: 'Tìm thấy chính mình trong hành trình' },
+            { src: 'assets/images/Nam_4.jpg', title: 'Tốt Nghiệp – Chân Trời Mới', caption: 'Hành trình mới đang chờ phía trước' },
+        ];
+
+        // Helper: load texture from real image, fallback to canvas
+        function loadMilestoneTexture(imgData, color, index, onLoad) {
+            const loader = new THREE.TextureLoader();
+            loader.load(
+                imgData.src,
+                (tex) => {
+                    tex.colorSpace = THREE.SRGBColorSpace;
+                    onLoad(tex, true);
+                },
+                undefined,
+                () => {
+                    // Fallback: gradient canvas
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 512; canvas.height = 384;
+                    const ctx = canvas.getContext('2d');
+                    const grad = ctx.createLinearGradient(0, 0, 512, 384);
+                    grad.addColorStop(0, `#${new THREE.Color(color).getHexString()}`);
+                    grad.addColorStop(1, '#1a0a2e');
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(0, 0, 512, 384);
+                    ctx.strokeStyle = `#${new THREE.Color(color).getHexString()}`;
+                    ctx.lineWidth = 4;
+                    ctx.strokeRect(10, 10, 492, 364);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '600 28px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`CỘT MỐC ${index + 1}`, 256, 192);
+                    onLoad(new THREE.CanvasTexture(canvas), false);
+                }
+            );
+        }
+
+        // Helper: create a glowing hologram frame with real image + caption label
+        function createHologram(z, color, index) {
+            const group = new THREE.Group();
+
+            // ── Glow backdrop ──
+            const glowMat = new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.06,
+                side: THREE.DoubleSide,
+            });
+            const glowPlane = new THREE.Mesh(
+                new THREE.PlaneGeometry(28, 21),
+                glowMat
+            );
+            glowPlane.position.z = -0.5;
+            group.add(glowPlane);
+
+            // ── Edge glow lines ──
+            const edgeGeom = new THREE.EdgesGeometry(new THREE.PlaneGeometry(24, 17));
+            const edgeMat = new THREE.LineBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.4,
+            });
+            const edges = new THREE.LineSegments(edgeGeom, edgeMat);
+            group.add(edges);
+
+            // ── Caption canvas (title + caption text below image) ──
+            const captionCanvas = document.createElement('canvas');
+            captionCanvas.width = 512;
+            captionCanvas.height = 120;
+            const cctx = captionCanvas.getContext('2d');
+            const imgData = milestoneImages[index];
+
+            // Title
+            cctx.fillStyle = `#${new THREE.Color(color).getHexString()}`;
+            cctx.font = 'bold 32px sans-serif';
+            cctx.textAlign = 'center';
+            cctx.fillText(imgData.title, 256, 40);
+
+            // Caption
+            cctx.fillStyle = 'rgba(220,200,255,0.85)';
+            cctx.font = '22px sans-serif';
+            cctx.fillText(imgData.caption, 256, 82);
+
+            // Separator line
+            cctx.strokeStyle = `rgba(${parseInt(new THREE.Color(color).r * 255)},${parseInt(new THREE.Color(color).g * 255)},${parseInt(new THREE.Color(color).b * 255)},0.5)`;
+            cctx.lineWidth = 1.5;
+            cctx.beginPath();
+            cctx.moveTo(80, 56); cctx.lineTo(432, 56);
+            cctx.stroke();
+
+            const captionTex = new THREE.CanvasTexture(captionCanvas);
+            const captionMat = new THREE.MeshBasicMaterial({
+                map: captionTex,
+                transparent: true,
+                opacity: 0.95,
+                side: THREE.DoubleSide,
+                depthTest: false,
+            });
+            // Positioned just below the image plane
+            const captionPlane = new THREE.Mesh(
+                new THREE.PlaneGeometry(24, 3.6),
+                captionMat
+            );
+            captionPlane.position.y = -10.3; // below image center
+            group.add(captionPlane);
+
+            // ── Main image plane (load async) ──
+            const planeMat = new THREE.MeshBasicMaterial({
+                transparent: true,
+                opacity: 1.0,
+                side: THREE.DoubleSide,
+            });
+            const plane = new THREE.Mesh(
+                new THREE.PlaneGeometry(24, 17),
+                planeMat
+            );
+            group.add(plane);
+
+            loadMilestoneTexture(imgData, color, index, (tex) => {
+                planeMat.map = tex;
+                planeMat.needsUpdate = true;
+            });
+
+            group.position.set(0, 0, z);
+            group.userData = { baseY: 0, index: index };
+            return group;
+        }
+
+        const hologramGroups = [];
+        milestones.forEach((m, i) => {
+            const holo = createHologram(m.z, m.color, i);
+            scene.add(holo);
+            hologramGroups.push(holo);
+        });
+
+        // ══════════════════════════════════════════════
+        //  6. AMBIENT LIGHT PILLARS — Cột sáng trang trí
+        // ══════════════════════════════════════════════
+        milestones.forEach((m, i) => {
+            // Vertical light beam at each milestone
+            const beamGeom = new THREE.CylinderGeometry(0.15, 0.15, 42, 8);
+            const beamMat = new THREE.MeshBasicMaterial({
+                color: m.color,
+                transparent: true,
+                opacity: 0.05,
+            });
+
+            // Left pillar
+            const beamL = new THREE.Mesh(beamGeom, beamMat);
+            beamL.position.set(-14, 0, m.z);
+            scene.add(beamL);
+
+            // Right pillar
+            const beamR = new THREE.Mesh(beamGeom, beamMat.clone());
+            beamR.position.set(14, 0, m.z);
+            scene.add(beamR);
+        });
+
+        // ══════════════════════════════════════════════
+        //  7. PROGRESS DOTS UI
+        // ══════════════════════════════════════════════
+        const progressTrack = document.getElementById('progress-track');
+        milestones.forEach((m, i) => {
+            const dot = document.createElement('div');
+            dot.className = 'progress-dot';
+            dot.style.top = `${(i / (milestones.length - 1)) * 100}%`;
+            dot.id = `dot-${i}`;
+            progressTrack.appendChild(dot);
+        });
+
+        function updateProgress(milestoneIndex) {
+            const fill = document.getElementById('progress-fill');
+            const pct = (milestoneIndex / (milestones.length - 1)) * 100;
+            fill.style.height = `${pct}%`;
+
+            milestones.forEach((_, i) => {
+                const dot = document.getElementById(`dot-${i}`);
+                dot.classList.toggle('active', i <= milestoneIndex);
+            });
+        }
+
+        // ══════════════════════════════════════════════
+        //  8. GSAP-STYLE CAMERA ANIMATION
+        //     (Using manual tweening since we avoid extra CDN for now)
+        // ══════════════════════════════════════════════
+
+        let currentMilestone = -1;
+        let isAnimating = false;
+        let journeyStarted = false;
+
+        function easeInOutCubic(t) {
+            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        }
+
+        let tween = null;
+
+        function animateCameraTo(targetZ, duration = 3.0, onComplete) {
+            isAnimating = true;
+            const startZ = camera.position.z;
+            const startTime = performance.now();
+            const durationMs = duration * 1000;
+            tween = {
+                update: (now) => {
+                    const elapsed = now - startTime;
+                    const progress = Math.min(elapsed / durationMs, 1.0);
+                    const eased = easeInOutCubic(progress);
+                    camera.position.z = startZ + (targetZ - startZ) * eased;
+                    camera.position.y = Math.sin(progress * Math.PI) * 1.5;
+                    if (progress >= 1.0) {
+                        camera.position.z = targetZ;
+                        camera.position.y = 0;
+                        isAnimating = false;
+                        tween = null;
+                        if (onComplete) onComplete();
+                        return true;
+                    }
+                    return false;
+                }
+            };
+        }
+
+        // ── Auto-fly through all milestones sequentially ──
+        function flyToMilestone(index) {
+            if (index >= milestones.length) {
+                // End of journey → show popup
+                setTimeout(showInvitePopup, 800);
+                return;
+            }
+            currentMilestone = index;
+            const targetZ = milestones[index].z + 60;
+
+            const label = document.getElementById('milestone-label');
+            label.textContent = milestones[index].label;
+            label.classList.add('visible');
+            setTimeout(() => label.classList.remove('visible'), 3500);
+            updateProgress(index);
+
+            animateCameraTo(targetZ, 3.5, () => {
+                // Pause at each milestone then continue
+                setTimeout(() => flyToMilestone(index + 1), 1000);
+            });
+        }
+
+        // ── Start journey (called by start button) ──
+        function startJourney() {
+            if (journeyStarted) return;
+            journeyStarted = true;
+
+            // Show progress UI
+            document.getElementById('progress-track').style.display = 'block';
+            document.getElementById('nav-hint').style.display = 'flex';
+
+            // Play music
+            const music = document.getElementById('bg-music');
+            music.volume = 0.4;
+            music.play().catch(() => { });
+            document.getElementById('audio-btn').classList.add('show');
+
+            flyToMilestone(0);
+        }
+
+        // ── Invite popup ──
+        function showInvitePopup() {
+            document.getElementById('invite-popup').classList.add('show');
+        }
+        document.getElementById('btn-close-popup').addEventListener('click', () => {
+            document.getElementById('invite-popup').classList.remove('show');
+        });
+        document.getElementById('popup-close-x').addEventListener('click', () => {
+            document.getElementById('invite-popup').classList.remove('show');
+        });
+
+        // ── Audio toggle ──
+        let musicMuted = false;
+        document.getElementById('audio-btn').addEventListener('click', () => {
+            const music = document.getElementById('bg-music');
+            musicMuted = !musicMuted;
+            music.muted = musicMuted;
+            document.getElementById('audio-btn').textContent = musicMuted ? '🔇' : '🎵';
+        });
+
+        // ── Start button ──
+        document.getElementById('btn-start').addEventListener('click', () => {
+            const ss = document.getElementById('start-screen');
+            ss.classList.add('hidden');
+            setTimeout(() => ss.style.display = 'none', 1200);
+            startJourney();
+        });
+
+        // ══════════════════════════════════════════════
+        //  9. RENDER LOOP
+        // ══════════════════════════════════════════════
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const elapsed = clock.getElapsedTime() * 0.5;
+            gu.time.value = elapsed * Math.PI;
+
+            // Update camera tween
+            if (tween) {
+                tween.update(performance.now());
+            }
+
+            // Hologram hover animation
+            hologramGroups.forEach((group, i) => {
+                group.position.y = Math.sin(elapsed * 0.8 + i * 1.2) * 0.8;
+                // Subtle rotation
+                group.rotation.y = Math.sin(elapsed * 0.3 + i) * 0.05;
+            });
+
+            // Controls (only when debug mode)
+            if (debugMode) controls.update();
+
+            renderer.render(scene, camera);
+        }
+
+        // ══════════════════════════════════════════════
+        //  10. LOADING & START
+        // ══════════════════════════════════════════════
+        // Spawn decorative stars on start screen
+        const starsContainer = document.getElementById('start-stars');
+        for (let i = 0; i < 80; i++) {
+            const s = document.createElement('div');
+            s.style.cssText = `
+                position:absolute;
+                width:${Math.random() * 2 + 1}px;
+                height:${Math.random() * 2 + 1}px;
+                border-radius:50%;
+                background:white;
+                top:${Math.random() * 100}%;
+                left:${Math.random() * 100}%;
+                opacity:${Math.random() * 0.7 + 0.1};
+                animation: loading-pulse ${1.5 + Math.random() * 3}s ease-in-out infinite;
+                animation-delay:${Math.random() * 3}s;
+            `;
+            starsContainer.appendChild(s);
+        }
+
+        // Fade out loading, reveal start screen
+        setTimeout(() => {
+            document.getElementById('loading-screen').classList.add('fade-out');
+            setTimeout(() => {
+                document.getElementById('loading-screen').style.display = 'none';
+            }, 1500);
+        }, 1200);
+
+        animate();
+    </script>
+</body>
+
+</html>
